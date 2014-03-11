@@ -45,6 +45,7 @@ namespace EquationResolver
 
                 ParsedTokens.Add(new ExpressionToken(token, TokenType.NONE);
             }
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -60,7 +61,30 @@ namespace EquationResolver
         public int OpenBracket(int current_index, string[] tokens, ref List<ExpressionToken> ParsedTokens)
         {
             var prev_token = ParsedTokens.LastOrDefault();
-            
+            if(prev_token == null)
+                prev_token = new ExpressionToken("+", TokenType.MATH_OPERATION, MathOperation.PLUS);
+            if(prev_token.Type == TokenType.MATH_OPERATION)
+            {
+                switch(prev_token.Operation)
+                {
+                    case MathOperation.PLUS:
+                        break;
+                    case MathOperation.MINUS:
+                        break;
+                    case MathOperation.DIV:
+                        break;
+                    case MathOperation.MULTIPLY:
+                        break;
+                }
+            }
+            else
+            {
+                //if it is not operation
+                if(prev_token.Type == TokenType.MEMBER || prev_token.Type == TokenType.NUMERIC)
+                {
+                    var member = new Member();
+                }
+            }
             throw new NotImplementedException();
         }
     }
