@@ -8,23 +8,24 @@ namespace EquationResolver
 {
     class Equation
     {
+        private List<string> _variable_aliases;
         private const string split_pattern = "+|-|/|*|[(]|[)]";
         private const string split_pattern_inc = "(+|-|/|*|[(]|[)])";
         public string Expression { get; set; }
         public List<Member> Members { get; set; }
 
-        public Equation()
+        public Equation(List<string> variables)
         {
             Members = new List<Member>();
+            _variable_aliases = variables;
         }
 
-        public Equation(string _expr)
+        public Equation(string _expr, List<string> variables)
         {
             Members = new List<Member>();
             Expression = _expr;
+            _variable_aliases = variables;
         }
-
-        private string 
 
         public void Parse()
         {
@@ -43,13 +44,13 @@ namespace EquationResolver
                     OpenBracket(i, tokens, ref ParsedTokens);
                 }
 
-                ParsedTokens.Add(new ExpressionToken(token, TokenType.NONE);
+                ParsedTokens.Add(new ExpressionToken(token, TokenType.NONE));
             }
             throw new NotImplementedException();
         }
 
         /// <summary>
-        /// Does required operations to members inside brakets: 
+        /// Perform required operations to members inside brakets: 
         /// change sign,
         /// multiply on numeric constant,
         /// multiply on expression with members
@@ -79,13 +80,17 @@ namespace EquationResolver
             }
             else
             {
-                //if it is not operation
+                //if it is not operation then it is member
+                var token = tokens[current_index];
                 if(prev_token.Type == TokenType.MEMBER || prev_token.Type == TokenType.NUMERIC)
                 {
-                    var member = new Member();
+                    var member = Members.LastOrDefault();
+
                 }
             }
             throw new NotImplementedException();
         }
+
+
     }
 }

@@ -9,6 +9,8 @@ namespace EquationResolver
     {
         static void Main(string[] args)
         {
+            List<string> variables = new List<string>() { "modx", "x" };
+            var test = Member.FromStringExpression("1.53xmodx^2", variables);
         }
     }
 }
