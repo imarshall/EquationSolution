@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EquationResolver", "EquationResolver\EquationResolver.csproj", "{223D24B3-CF9D-4A1C-A7F7-0DCBBA41E61E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EquationSolution", "EquationResolver\EquationSolution.csproj", "{223D24B3-CF9D-4A1C-A7F7-0DCBBA41E61E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

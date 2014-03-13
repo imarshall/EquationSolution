@@ -8,7 +8,7 @@
     <ProjectGuid>{223D24B3-CF9D-4A1C-A7F7-0DCBBA41E61E}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>EquationResolver</RootNamespace>
+    <RootNamespace>EquationSolution</RootNamespace>
     <AssemblyName>EquationResolver</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <TargetFrameworkProfile>Client</TargetFrameworkProfile>

@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Globalization;
 
-namespace EquationResolver
+namespace EquationSolution
 {
     public enum MathOperation { NONE, PLUS, MINUS, MULTIPLY, DIV, POW, EQUAL }
 

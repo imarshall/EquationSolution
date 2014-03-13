@@ -4,13 +4,15 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace EquationResolver
+namespace EquationSolution
 {
     class Equation
     {
         private List<string> _variable_aliases;
-        private const string split_pattern = "+|-|/|*|[(]|[)]";
-        private const string split_pattern_inc = "(+|-|/|*|[(]|[)])";
+        private List<ExpressionToken> _parsed_tokens;
+        private const string split_pattern = "+|-|/|*|[(]|[)]|=";
+        private const string split_pattern_inc = "(+|-|/|*|[(]|[)]|=)";
+
         public string Expression { get; set; }
         public List<Member> Members { get; set; }
 
@@ -27,26 +29,33 @@ namespace EquationResolver
             _variable_aliases = variables;
         }
 
-        public void Parse()
+        public void GetTokens()
         {
             if (string.IsNullOrEmpty(Expression))
                 throw new ArgumentNullException("Expression", "Class parameter Expression cannot be null or empty");
 
             var tokens = Regex.Split(Expression, split_pattern_inc);
-            List<ExpressionToken> ParsedTokens = new List<ExpressionToken>();
+            _parsed_tokens = new List<ExpressionToken>();
             for (int i = 0; i < tokens.Length; i++)
             {
                 //compiler smarter than me, it will optimize this
                 var token = tokens[i];
 
-                if (token == "(")
-                {
-                    OpenBracket(i, tokens, ref ParsedTokens);
-                }
+                //if (token == "(")
+                //{
+                //    OpenBracket(i, tokens, ref ParsedTokens);
+                //}
 
-                ParsedTokens.Add(new ExpressionToken(token, TokenType.NONE));
+                ExpressionToken expr_token = ExpressionToken.FromStringExpression(token);
+                _parsed_tokens.Add(expr_token);
+                _parsed_tokens.Add(new ExpressionToken(token, TokenType.NONE));
             }
-            throw new NotImplementedException();
+            //we've got preparsed tokens
+
+            var obrackets = _parsed_tokens.Where(x => x.Type == TokenType.O_BRACKET).ToList();
+            var cbrackets = _parsed_tokens.Where(x => x.Type == TokenType.C_BRACKET).ToList();
+            if (obrackets.Count != cbrackets.Count)
+                throw new ArgumentException("Equation is incorrect. Some brackets is not closed/opened", "Expression");
         }
 
         /// <summary>
@@ -59,7 +68,7 @@ namespace EquationResolver
         /// <param name="ParsedTokens">recently parsed tokens of the expression</param>
         /// <param name="tokens">entiry array of expression's tokens</param>
         /// <returns>index on next element after closing bracket in tokens</returns>
-        public int OpenBracket(int current_index, string[] tokens, ref List<ExpressionToken> ParsedTokens)
+        public int OpenBracket(List<ExpressionToken> ParsedTokens)
         {
             var prev_token = ParsedTokens.LastOrDefault();
             if(prev_token == null)
@@ -85,7 +94,6 @@ namespace EquationResolver
                 if(prev_token.Type == TokenType.MEMBER || prev_token.Type == TokenType.NUMERIC)
                 {
                     var member = Members.LastOrDefault();
-
                 }
             }
             throw new NotImplementedException();
