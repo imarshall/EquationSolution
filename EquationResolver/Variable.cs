@@ -7,7 +7,7 @@ using System.Globalization;
 
 namespace EquationSolution
 {
-    class Variable
+    class Variable : ICloneable
     {
         private const string variable_pattern = @"((?:[1-9]\d*|0)?(?:\.\d+)?)({0}(\^[0-9])?)";
         public string Alias { get; set; }
@@ -20,6 +20,49 @@ namespace EquationSolution
             Alias = _alias;
             Factor = _factor;
             Power = _power;
+        }
+
+        public static Variable operator *(Variable var1, Variable var2)
+        {
+            if (var1.Alias != var2.Alias)
+                throw new InvalidCastException(string.Format("Cannot cast an \"{0}\" into \"{1}\"", var2.Alias, var1.Alias));
+            Variable result = new Variable(var1.Alias, 1.0, 1.0);
+            if (var1.Factor == 0 || var2.Factor == 0)
+            {
+                result.Factor = 0;
+            }
+            else
+            {
+                result.Factor = var1.Factor * var2.Factor;
+                result.Power = var1.Power + var2.Power;
+            }
+            return result;
+        }
+
+        public override string ToString()
+        {
+            string _factor = (this.Factor == 1) ? "" : this.Factor.ToString();
+            string power = (this.Power == 1) ? "" : "^" + this.Power.ToString();
+            return string.Format("{0}{1}{2}", _factor, this.Alias, power);
+        }
+
+        public static Variable operator /(Variable var1, Variable var2)
+        {
+            if (var1.Alias != var2.Alias)
+                throw new InvalidCastException(string.Format("Cannot cast an \"{0}\" into \"{1}\"", var2.Alias, var1.Alias));
+            Variable result = new Variable(var1.Alias, 1.0, 1.0);
+            if (var2.Factor == 0)
+                throw new InvalidOperationException("Cannot divide by zero");
+            if (var1.Factor == 0)
+            {
+                result.Factor = 0;
+            }
+            else
+            {
+                result.Factor = var1.Factor / var2.Factor;
+                result.Power = var1.Power - var2.Power;
+            }
+            return result;
         }
 
         public static List<Variable> FromStringExpression(string input_str, List<string> variable_aliases)
@@ -47,6 +90,20 @@ namespace EquationSolution
                 }
             }
             return vars;
+        }
+
+        object ICloneable.Clone()
+        {
+            Variable _copy = new Variable();
+            _copy.Alias = (string)this.Alias.Clone();
+            _copy.Factor = this.Factor;
+            _copy.Power = this.Power;
+            return _copy;
+        }
+
+        public Variable Clone()
+        {
+            return (Variable)(((ICloneable)this).Clone());
         }
     }
 }

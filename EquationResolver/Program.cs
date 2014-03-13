@@ -9,8 +9,18 @@ namespace EquationSolution
     {
         static void Main(string[] args)
         {
-            List<string> variables = new List<string>() { "modx", "x" };
-            var test = ExpressionToken.FromStringExpression("(");
+            List<string> variables = new List<string>() { "y", "x" };
+            /*var test = ExpressionToken.FromStringExpression("(");
+            Member first = Member.FromStringExpression("x", variables);
+            Member second = Member.FromStringExpression("2x^1", variables);
+            Member third = Member.FromStringExpression("y", variables);
+            var res = first * second / third;
+            Console.WriteLine(first.ToString() + " * " + second.ToString() + " / " + third + " = " + res.ToString());
+            Console.ReadKey();*/
+
+            Equation eq = new Equation("x - y = 0", variables);
+            eq.Evaluate();
+            Console.ReadKey();
         }
     }
 }

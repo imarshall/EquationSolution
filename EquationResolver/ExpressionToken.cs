@@ -39,7 +39,7 @@ namespace EquationSolution
             if (expr_token == null)
             {
                 expr_token = new ExpressionToken();
-                expr_token.Text = input_str;
+                expr_token.Text = input_str.Trim();
                 double tmp;
                 if (double.TryParse(input_str, NumberStyles.Any, CultureInfo.InvariantCulture, out tmp))
                     expr_token.Type = TokenType.NUMERIC;
