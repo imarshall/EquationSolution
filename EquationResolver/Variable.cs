@@ -43,7 +43,13 @@ namespace EquationSolution
         {
             string _factor = (this.Factor == 1) ? "" : this.Factor.ToString();
             string power = (this.Power == 1) ? "" : "^" + this.Power.ToString();
-            return string.Format("{0}{1}{2}", _factor, this.Alias, power);
+            string alias = this.Alias;
+            if (this.Factor == 0)
+            {
+                power = "";
+                alias = "";
+            }
+            return string.Format("{0}{1}{2}", _factor, alias, power);
         }
 
         public static Variable operator /(Variable var1, Variable var2)

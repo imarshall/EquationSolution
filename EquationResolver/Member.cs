@@ -9,14 +9,9 @@ namespace EquationSolution
 {
     public enum MathOperation { NONE, PLUS, MINUS, MULTIPLY, DIV, POW, EQUAL }
 
-    class Member
+    class Member : ICloneable
     {
-        //1.23234w1^3
-        //123.123a^2
         private const string member_var_pattern = @"^((?:[1-9]\d*|0)?(?:\.\d+)?)(([a-zA-Z]{1,}[0-9]*(\^[0-9])?){1,})$";
-        //1.23234
-        //123.123
-        //private const string member_novar_pattern = @"^((?:[1-9]\d*|0)?(?:\.\d+))?$";
         private double _factor = 0.0f;
         public double Factor {
             get { return _factor; }
@@ -29,6 +24,63 @@ namespace EquationSolution
         {
             Variables = new List<Variable>();
             Operation = MathOperation.PLUS;
+        }
+
+        public static Member operator +(Member mem1, Member mem2)
+        {
+            Member result = (Member)mem1.Clone();
+            if (!mem1.CompareVariables(mem2.Variables))
+                throw new InvalidOperationException("Cannot add not similar members");
+            if(result.Operation == mem2.Operation)
+                result._factor += mem2._factor;
+            else
+                result._factor -= mem2._factor;
+            ValidateMember(ref result);
+            return result;
+        }
+
+        public static Member operator -(Member mem1, Member mem2)
+        {
+            Member result = (Member)mem1.Clone();
+            if (!mem1.CompareVariables(mem2.Variables))
+                throw new InvalidOperationException("Cannot add not similar members");
+            if (result.Operation == mem2.Operation)
+                result._factor -= mem2._factor;
+            else
+                result._factor += mem2._factor;
+            ValidateMember(ref result);
+            return result;
+        }
+
+        private static MathOperation GetOperationMultiplyOrDivide(MathOperation op1, MathOperation op2)
+        {
+            MathOperation result = MathOperation.PLUS;
+            if (op1 == MathOperation.MULTIPLY || op1 == MathOperation.DIV)
+                if (op2 == MathOperation.MINUS)
+                    result = MathOperation.MINUS;
+            if (op2 == MathOperation.MULTIPLY || op2 == MathOperation.DIV)
+                if (op1 == MathOperation.MINUS)
+                    result = MathOperation.MINUS;
+
+            if (op1 == MathOperation.PLUS && op2 == MathOperation.MINUS)
+                result = MathOperation.MINUS;
+            if (op2 == MathOperation.PLUS && op1 == MathOperation.MINUS)
+                result = MathOperation.MINUS;
+            return result;
+        }
+
+        private static void ValidateMember(ref Member mem)
+        {
+            if (mem.Factor < 0 && mem.Operation == MathOperation.PLUS)
+            {
+                mem.Factor = -mem.Factor;
+                mem.Operation = MathOperation.MINUS;
+            }
+            else if (mem.Factor < 0 && mem.Operation == MathOperation.MINUS)
+            {
+                mem.Factor = -mem.Factor;
+                mem.Operation = MathOperation.PLUS;
+            }
         }
 
         public static Member operator *(Member mem1, Member mem2)
@@ -53,14 +105,16 @@ namespace EquationSolution
                     variable_list.Add(item);
                 }
             }
+            result.Operation = GetOperationMultiplyOrDivide(mem1.Operation, mem2.Operation);
             result.Variables = variable_list;
+
+            ValidateMember(ref result);
             return result;
         }
 
         public override string ToString()
         {
             string _factor = "";
-            //(this.Factor == 1) ? "" : this.Factor.ToString();
             if (Variables.Count == 0)
                 _factor = this.Factor.ToString();
             else if (this.Factor != 1)
@@ -87,14 +141,17 @@ namespace EquationSolution
             return string.Format("{2} {0}{1}", _factor, variables.ToString(), sign);
         }
 
-        public string ToString(string format)
+        public string ToShortString()
         {
-            string _factor = (this.Factor == 1) ? "" : this.Factor.ToString();
+            string _factor = "";
+            if (Variables.Count == 0)
+                _factor = this.Factor.ToString();
+            else if (this.Factor != 1)
+                _factor = this.Factor.ToString();
             StringBuilder variables = new StringBuilder(10);
-            string sign = "";
             foreach (var item in this.Variables)
                 variables.Append(item.ToString());
-            throw new NotImplementedException();
+            return string.Format("{0}{1}", _factor, variables.ToString());
         }
 
         public static Member operator /(Member mem1, Member mem2)
@@ -121,6 +178,7 @@ namespace EquationSolution
                     variable_list.Add(clone);
                 }
             }
+            result.Operation = GetOperationMultiplyOrDivide(mem1.Operation, mem2.Operation);
             result.Variables = variable_list;
             return result;
         }
@@ -136,7 +194,6 @@ namespace EquationSolution
                 //2 group - variables with powers
                 //3 group - useless last variable
                 //4 group - useless last power
-                //if(string.IsNullOrEmpty(match.Groups[1].Value))
                 if (!double.TryParse(match.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out mem._factor))
                     mem._factor = 1.0;
                 input_str = input_str.Replace(mem._factor.ToString(CultureInfo.InvariantCulture), "");
@@ -145,16 +202,35 @@ namespace EquationSolution
             }
             else
             {
-                //match = Regex.Match(input_str, member_novar_pattern);
-                //if (match.Success)
-                //{
-                    //it is float numeric
+                //it is float numeric
                 if (!double.TryParse(input_str, NumberStyles.Any, CultureInfo.InvariantCulture, out mem._factor))
                     mem._factor = 1.0;
                     //todo get operation if there is one
-                //}
             }
             return mem;
+        }
+
+        public object Clone()
+        {
+            Member _copy = new Member();
+            _copy.Operation = this.Operation;
+            _copy.Factor = this.Factor;
+            foreach (var item in this.Variables)
+                _copy.Variables.Add(item.Clone());
+            return _copy;
+        }
+
+        public bool CompareVariables(List<Variable> in_variables)
+        {
+            if (this.Variables.Count != in_variables.Count)
+                return false;
+            foreach (var my_var in this.Variables)
+            {
+                var match = in_variables.Where(x => x.Alias == my_var.Alias && x.Power == my_var.Power).FirstOrDefault();
+                if (match == null)
+                    return false;
+            }
+            return true;
         }
     }
 }

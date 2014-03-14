@@ -19,13 +19,21 @@ namespace EquationSolution
         public override string ToString()
         {
             StringBuilder result = new StringBuilder(40);
-            foreach(var item in Members)
+            int members_count = Members.Count;
+            if (members_count > 0)
             {
-                if (item == null)
-                    continue;
-                result.AppendFormat("{0} ", item.ToString());
+                result.AppendFormat("{0} ", Members[0].ToShortString());
+                if (members_count > 1)
+                {
+                    for (int i = 1; i < members_count; i++)
+                    {
+                        if (Members[i] == null)
+                            continue;
+                        result.AppendFormat("{0} ", Members[i].ToString());
+                    }
+                }
+                result.Append("= 0");
             }
-            result.Append("= 0");
             return result.ToString();
         }
 
@@ -58,6 +66,8 @@ namespace EquationSolution
                     continue;
 
                 ExpressionToken expr_token = ExpressionToken.FromStringExpression(token);
+                if (expr_token.Type == TokenType.NONE)
+                    throw new ArgumentException("Equation member has incorrect format");
                 _parsed_tokens.Add(expr_token);
             }
             //we've got preparsed tokens
@@ -123,10 +133,71 @@ namespace EquationSolution
                     throw new InvalidCastException(string.Format("Incorrect member \"{0}\" in equation", token.Text));
                 Members.Add(cur_member);
             }
+            ReductionOfSimilar();
+        }
+
+        private void ReductionOfSimilar()
+        {
+            List<Member> Reducted = new List<Member>();
+
+            List<Member> SemiReducted = new List<Member>();
+            var multiply = Members.Where(x => x != null && x.Operation == MathOperation.MULTIPLY).ToList();
+            foreach (var item in multiply)
+            {
+                var index = Members.IndexOf(item);
+                var sibling = (Member)Members[index - 1].Clone();
+                sibling *= item;
+                SemiReducted.Add(sibling);
+                Members.Remove(item);
+                Members.Remove(sibling);
+            }
+
+            var divide = Members.Where(x => x != null && x.Operation == MathOperation.DIV).ToList();
+            foreach (var item in divide)
+            {
+                var index = Members.IndexOf(item);
+                var sibling = (Member)Members[index - 1].Clone();
+                sibling /= item;
+                SemiReducted.Add(sibling);
+                Members.Remove(item);
+                Members.Remove(sibling);
+            }
+            var plus_minus = PerformPlusMinusOperations(Members);
+            SemiReducted.AddRange(plus_minus);
+            Members = PerformPlusMinusOperations(SemiReducted);
+        }
+
+        private List<Member> PerformPlusMinusOperations(List<Member> in_members)
+        {
+            List<Member> Reducted = new List<Member>();
+            var plus_min = in_members.Where(x => x != null && (x.Operation == MathOperation.PLUS || x.Operation == MathOperation.MINUS)).ToList();
+            List<Member> handled = new List<Member>();
+            foreach (var item in plus_min)
+            {
+                if (handled.Contains(item))
+                    continue;
+                var similar = in_members.Where(x => x != null && x.CompareVariables(item.Variables) && item != x).ToList();
+                Member result = (Member)item.Clone();
+                foreach (var summand in similar)
+                {
+                    switch (summand.Operation)
+                    {
+                        case MathOperation.PLUS:
+                            result += summand;
+                            break;
+                        case MathOperation.MINUS:
+                            result -= summand;
+                            break;
+                    }
+                    handled.Add(summand);
+                }
+                Reducted.Add(result);
+            }
+            return Reducted;
         }
 
         /// <summary>
-        /// Perform required operations to members inside brakets: 
+        /// Perform required operations to members inside brackets: 
         /// change sign,
         /// multiply on numeric constant,
         /// multiply on members
@@ -150,8 +221,12 @@ namespace EquationSolution
                     while (cur_token.Type != TokenType.C_BRACKET)
                     {
                         var cur_member = GetMember(cur_token, ref index);
-                        if (cur_member == null)
-                            throw new InvalidCastException(string.Format("Incorrect member \"{0}\" in equation", cur_token.Text));
+                        if (cur_member == null && cur_token.Type != TokenType.MEMBER && cur_token.Type != TokenType.NUMERIC)
+                        {
+                            index++;
+                            cur_token = _parsed_tokens[index];
+                            continue;
+                        }
                         members_in_brackets.Add(cur_member);
                         index++;
                         cur_token = _parsed_tokens[index];
@@ -171,6 +246,8 @@ namespace EquationSolution
                     if (token_bef_br.Operation == MathOperation.MULTIPLY)
                     {
                         if(current_index - 2 < 0)
+                            throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index - 2));
+                        if(Members.Count < current_index - 2)
                             throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index - 2));
                         var member_bef_operation = Members[current_index - 2];
                         if (member_bef_operation == null)
