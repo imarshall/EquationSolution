@@ -16,6 +16,19 @@ namespace EquationSolution
         public string Expression { get; set; }
         public List<Member> Members { get; set; }
 
+        public override string ToString()
+        {
+            StringBuilder result = new StringBuilder(40);
+            foreach(var item in Members)
+            {
+                if (item == null)
+                    continue;
+                result.AppendFormat("{0} ", item.ToString());
+            }
+            result.Append("= 0");
+            return result.ToString();
+        }
+
         public Equation(List<string> variables)
         {
             Members = new List<Member>();
@@ -40,10 +53,12 @@ namespace EquationSolution
             {
                 //compiler smarter than me, it will optimize this
                 var token = tokens[i];
+                token = token.Trim();
+                if (string.IsNullOrEmpty(token))
+                    continue;
 
                 ExpressionToken expr_token = ExpressionToken.FromStringExpression(token);
                 _parsed_tokens.Add(expr_token);
-                //_parsed_tokens.Add(new ExpressionToken(token, TokenType.NONE));
             }
             //we've got preparsed tokens
 
@@ -51,33 +66,50 @@ namespace EquationSolution
             var cbrackets = _parsed_tokens.Where(x => x.Type == TokenType.C_BRACKET).ToList();
             if (obrackets.Count != cbrackets.Count)
                 throw new ArgumentException("Equation is incorrect. Some brackets is not closed/opened", "Expression");
+            if(_parsed_tokens.Where(x=>x.Type == TokenType.MATH_OPERATION && x.Operation == MathOperation.EQUAL).Count() != 1)
+                throw new ArgumentException("Equation is incorrect. There should be one equal sign", "Expression");
         }
 
-        private Member GetMember(ExpressionToken token, int index)
+        private Member GetMember(ExpressionToken token, ref int index)
         {
             Member cur_member = null;
             switch (token.Type)
             {
                 case TokenType.MATH_OPERATION:
                     if(token.Operation == MathOperation.EQUAL)
-                    {
-
-                    }
+                        MoveEqualSign(ref index);
                     break;
                 case TokenType.MEMBER:
                     cur_member = Member.FromStringExpression(token.Text, _variable_aliases);
                     if (index - 1 > 0)
-                        if (_parsed_tokens[index - 1].Type == TokenType.MATH_OPERATION)
+                        if (_parsed_tokens[index - 1].Type == TokenType.MATH_OPERATION && _parsed_tokens[index - 1].Operation != MathOperation.EQUAL)
                             cur_member.Operation = _parsed_tokens[index - 1].Operation;
                     break;
                 case TokenType.NUMERIC:
                     cur_member = Member.FromStringExpression(token.Text, _variable_aliases);
+                    if (_parsed_tokens[index - 1].Type == TokenType.MATH_OPERATION && _parsed_tokens[index - 1].Operation != MathOperation.EQUAL)
+                        cur_member.Operation = _parsed_tokens[index - 1].Operation;
                     break;
-                case TokenType.C_BRACKET:
+                case TokenType.O_BRACKET:
                     index = OpenBracket(index);
                     break;
             }
             return cur_member;
+        }
+
+        private void MoveEqualSign(ref int index)
+        {
+            for (index = index+1; index < _parsed_tokens.Count; index++)
+            {
+                var mem = GetMember(_parsed_tokens[index],ref index);
+                if (mem == null)
+                    continue;
+                if (mem.Operation == MathOperation.PLUS)
+                    mem.Operation = MathOperation.MINUS;
+                else if (mem.Operation == MathOperation.MINUS)
+                    mem.Operation = MathOperation.PLUS;
+                Members.Add(mem);
+            }
         }
 
         public void Evaluate()
@@ -86,7 +118,7 @@ namespace EquationSolution
             for(int i=0;i<_parsed_tokens.Count;i++)
             {
                 var token = _parsed_tokens[i];
-                var cur_member = GetMember(token, i);
+                var cur_member = GetMember(token, ref i);
                 if (cur_member == null && (token.Type == TokenType.MEMBER || token.Type == TokenType.NUMERIC))
                     throw new InvalidCastException(string.Format("Incorrect member \"{0}\" in equation", token.Text));
                 Members.Add(cur_member);
@@ -117,11 +149,12 @@ namespace EquationSolution
                     var cur_token = _parsed_tokens[index];
                     while (cur_token.Type != TokenType.C_BRACKET)
                     {
-                        var cur_member = GetMember(cur_token, index);
+                        var cur_member = GetMember(cur_token, ref index);
                         if (cur_member == null)
                             throw new InvalidCastException(string.Format("Incorrect member \"{0}\" in equation", cur_token.Text));
                         members_in_brackets.Add(cur_member);
                         index++;
+                        cur_token = _parsed_tokens[index];
                     }
 
                     if (token_bef_br.Operation == MathOperation.MINUS)
@@ -139,22 +172,43 @@ namespace EquationSolution
                     {
                         if(current_index - 2 < 0)
                             throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index - 2));
-                        var token_bef_operation = Members[current_index - 2];
-                        if(token_bef_br.Type != TokenType.MEMBER || token_bef_br.Type != TokenType.NUMERIC)
+                        var member_bef_operation = Members[current_index - 2];
+                        if (member_bef_operation == null)
                             throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index - 2));
                         for(int i=0;i<members_in_brackets.Count;i++)
                         {
-                            members_in_brackets[i] *= token_bef_operation;
+                            members_in_brackets[i] *= member_bef_operation;
                         }
+                        Members[current_index - 2] = members_in_brackets[0];
+                        for (int i = 1; i < members_in_brackets.Count; i++)
+                            Members.Add(members_in_brackets[i]);
                     }
+
+                    if (token_bef_br.Operation == MathOperation.DIV)
+                    {
+                        if (current_index - 2 < 0)
+                            throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index - 2));
+                        var token_bef_operation = Members[current_index - 2];
+                        if (token_bef_br.Type != TokenType.MEMBER || token_bef_br.Type != TokenType.NUMERIC)
+                            throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index - 2));
+                        for (int i = 0; i < members_in_brackets.Count; i++)
+                        {
+                            members_in_brackets[i] /= token_bef_operation;
+                        }
+                        Members[current_index - 2] = members_in_brackets[0];
+                        for (int i = 1; i < members_in_brackets.Count; i++)
+                            Members.Add(members_in_brackets[i]);
+                    }
+
+                    current_index = index;
                 }//end if token before bracket is operation
                 else if (token_bef_br.Type == TokenType.NUMERIC || token_bef_br.Type == TokenType.MEMBER)
                 {
 
                 }
             }
-
-            throw new NotImplementedException();
+            //todo handle case if there is brackets after brackets
+            return current_index;
         }
 
 

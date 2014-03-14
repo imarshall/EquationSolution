@@ -16,7 +16,7 @@ namespace EquationSolution
         private const string member_var_pattern = @"^((?:[1-9]\d*|0)?(?:\.\d+)?)(([a-zA-Z]{1,}[0-9]*(\^[0-9])?){1,})$";
         //1.23234
         //123.123
-        private const string member_novar_pattern = @"^((?:[1-9]\d*|0)?(?:\.\d+))?$";
+        //private const string member_novar_pattern = @"^((?:[1-9]\d*|0)?(?:\.\d+))?$";
         private double _factor = 0.0f;
         public double Factor {
             get { return _factor; }
@@ -59,11 +59,42 @@ namespace EquationSolution
 
         public override string ToString()
         {
-            string _factor = (this.Factor == 1) ? "" : this.Factor.ToString();
+            string _factor = "";
+            //(this.Factor == 1) ? "" : this.Factor.ToString();
+            if (Variables.Count == 0)
+                _factor = this.Factor.ToString();
+            else if (this.Factor != 1)
+                _factor = this.Factor.ToString();
             StringBuilder variables = new StringBuilder(10);
+            string sign = "";
             foreach (var item in this.Variables)
                 variables.Append(item.ToString());
-            return string.Format("{0}{1}", _factor, variables.ToString());
+            switch (this.Operation)
+            {
+                case MathOperation.PLUS:
+                    sign = "+";
+                    break;
+                case MathOperation.MINUS:
+                    sign = "-";
+                    break;
+                case MathOperation.MULTIPLY:
+                    sign = "*";
+                    break;
+                case MathOperation.DIV:
+                    sign = "/";
+                    break;
+            }
+            return string.Format("{2} {0}{1}", _factor, variables.ToString(), sign);
+        }
+
+        public string ToString(string format)
+        {
+            string _factor = (this.Factor == 1) ? "" : this.Factor.ToString();
+            StringBuilder variables = new StringBuilder(10);
+            string sign = "";
+            foreach (var item in this.Variables)
+                variables.Append(item.ToString());
+            throw new NotImplementedException();
         }
 
         public static Member operator /(Member mem1, Member mem2)
@@ -108,22 +139,20 @@ namespace EquationSolution
                 //if(string.IsNullOrEmpty(match.Groups[1].Value))
                 if (!double.TryParse(match.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out mem._factor))
                     mem._factor = 1.0;
-                    //throw new Exception("incorrect member");
                 input_str = input_str.Replace(mem._factor.ToString(CultureInfo.InvariantCulture), "");
                 mem.Variables = Variable.FromStringExpression(input_str, _variable_aliases);
                 //todo get operation if there is one
             }
             else
             {
-                match = Regex.Match(input_str, member_novar_pattern);
-                if (match.Success)
-                {
+                //match = Regex.Match(input_str, member_novar_pattern);
+                //if (match.Success)
+                //{
                     //it is float numeric
-                    if (!double.TryParse(match.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out mem._factor))
-                        mem._factor = 1.0;
-                        //throw new Exception("incorrect member");
+                if (!double.TryParse(input_str, NumberStyles.Any, CultureInfo.InvariantCulture, out mem._factor))
+                    mem._factor = 1.0;
                     //todo get operation if there is one
-                }
+                //}
             }
             return mem;
         }
