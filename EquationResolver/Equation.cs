@@ -20,6 +20,7 @@ namespace EquationSolution
         {
             StringBuilder result = new StringBuilder(40);
             int members_count = Members.Count;
+            Members = Members.OrderByDescending(x => x.MaxPower).ToList();
             if (members_count > 0)
             {
                 result.AppendFormat("{0} ", Members[0].ToShortString());
@@ -148,8 +149,8 @@ namespace EquationSolution
                 var sibling = (Member)Members[index - 1].Clone();
                 sibling *= item;
                 SemiReducted.Add(sibling);
-                Members.Remove(item);
-                Members.Remove(sibling);
+                Members.RemoveAt(index);
+                Members.RemoveAt(index - 1);
             }
 
             var divide = Members.Where(x => x != null && x.Operation == MathOperation.DIV).ToList();
@@ -205,87 +206,112 @@ namespace EquationSolution
         /// <param name="current_index">index of "(" token</param>
         /// <param name="ParsedTokens">recently parsed tokens of the expression</param>
         /// <param name="tokens">entiry array of expression's tokens</param>
-        /// <returns>index on next element after closing bracket in tokens</returns>
+        /// <returns>index on closing bracket token</returns>
         public int OpenBracket(int current_index)
         {
             if(current_index + 1 > _parsed_tokens.Count)
-                throw new MissingMemberException(string.Format("There should be at least closing parenthesis after opened one. Position: {0}", current_index));
+                throw new MissingMemberException(string.Format("There should be closing parenthesis after opened one. Position: {0}", current_index));
             List<Member> members_in_brackets = new List<Member>();
             if (current_index - 1 > 0)
             {
                 var token_bef_br = _parsed_tokens[current_index - 1];
-                if (token_bef_br.Type == TokenType.MATH_OPERATION)
+                int index = current_index+1;
+                var cur_token = _parsed_tokens[index];
+                while (cur_token.Type != TokenType.C_BRACKET)
                 {
-                    int index = current_index+1;
-                    var cur_token = _parsed_tokens[index];
-                    while (cur_token.Type != TokenType.C_BRACKET)
+                    var cur_member = GetMember(cur_token, ref index);
+                    if (cur_member == null && cur_token.Type != TokenType.MEMBER && cur_token.Type != TokenType.NUMERIC)
                     {
-                        var cur_member = GetMember(cur_token, ref index);
-                        if (cur_member == null && cur_token.Type != TokenType.MEMBER && cur_token.Type != TokenType.NUMERIC)
-                        {
-                            index++;
-                            cur_token = _parsed_tokens[index];
-                            continue;
-                        }
-                        members_in_brackets.Add(cur_member);
                         index++;
                         cur_token = _parsed_tokens[index];
+                        continue;
                     }
+                    members_in_brackets.Add(cur_member);
+                    index++;
+                    cur_token = _parsed_tokens[index];
+                }
 
+                if (token_bef_br.Type == TokenType.MATH_OPERATION)
+                {
                     if (token_bef_br.Operation == MathOperation.MINUS)
                     {
                         foreach (var item in members_in_brackets)
                         {
                             if (item.Operation == MathOperation.PLUS)
                                 item.Operation = MathOperation.MINUS;
-                            if(item.Operation == MathOperation.MINUS)
+                            if (item.Operation == MathOperation.MINUS)
                                 item.Operation = MathOperation.PLUS;
                         }
                     }
 
-                    if (token_bef_br.Operation == MathOperation.MULTIPLY)
-                    {
-                        if(current_index - 2 < 0)
-                            throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index - 2));
-                        if(Members.Count < current_index - 2)
-                            throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index - 2));
-                        var member_bef_operation = Members[current_index - 2];
-                        if (member_bef_operation == null)
-                            throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index - 2));
-                        for(int i=0;i<members_in_brackets.Count;i++)
-                        {
-                            members_in_brackets[i] *= member_bef_operation;
-                        }
-                        Members[current_index - 2] = members_in_brackets[0];
-                        for (int i = 1; i < members_in_brackets.Count; i++)
-                            Members.Add(members_in_brackets[i]);
-                    }
-
-                    if (token_bef_br.Operation == MathOperation.DIV)
-                    {
-                        if (current_index - 2 < 0)
-                            throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index - 2));
-                        var token_bef_operation = Members[current_index - 2];
-                        if (token_bef_br.Type != TokenType.MEMBER || token_bef_br.Type != TokenType.NUMERIC)
-                            throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index - 2));
-                        for (int i = 0; i < members_in_brackets.Count; i++)
-                        {
-                            members_in_brackets[i] /= token_bef_operation;
-                        }
-                        Members[current_index - 2] = members_in_brackets[0];
-                        for (int i = 1; i < members_in_brackets.Count; i++)
-                            Members.Add(members_in_brackets[i]);
-                    }
+                    var member_bef_operation = Members[current_index - 2];
+                    if (member_bef_operation == null)
+                        throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index - 2));
+                    performBracketOperation(current_index - 2, token_bef_br.Operation,
+                        members_in_brackets, new List<Member>() { member_bef_operation }, true);
 
                     current_index = index;
                 }//end if token before bracket is operation
                 else if (token_bef_br.Type == TokenType.NUMERIC || token_bef_br.Type == TokenType.MEMBER)
                 {
-
+                    var member_bef_operation = Members[current_index - 1];
+                    if (member_bef_operation == null)
+                        throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index - 1));
+                    performBracketOperation(current_index - 1, MathOperation.MULTIPLY,
+                        members_in_brackets, new List<Member>() { member_bef_operation }, true);
+                    current_index = index;
                 }
-            }
+            }//end if there is something before brackets
             //todo handle case if there is brackets after brackets
             return current_index;
+        }
+
+        /// <summary>
+        /// Performs operation with brackets (multiply, divide)
+        /// </summary>
+        /// <param name="current_index">current index of member before operation in tokens/members</param>
+        /// <param name="operation">Mathematic operation required to perform</param>
+        /// <param name="m_in_brackets">members which are in brackets</param>
+        /// <param name="m_out_brackets">members which are in another brackets or out of brackets</param>
+        /// <param name="replace_m_before">True - it is required to replace member located before brackets, ex. 5*(a+b)</param>
+        private void performBracketOperation(int current_index, MathOperation operation,
+            List<Member> m_in_brackets, List<Member> m_out_brackets, bool replace_m_before)
+        {
+            if (current_index < 0)
+                throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index));
+            if (Members.Count < current_index)
+                throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index));
+            if (m_out_brackets == null || m_out_brackets.Count == 0)
+                throw new MissingMemberException(string.Format("Missing member before operation.  Position: {0}", current_index));
+            for (int k = 0; k < m_out_brackets.Count; k++)
+            {
+                for (int i = 0; i < m_in_brackets.Count; i++)
+                {
+                    switch (operation)
+                    {
+                        case MathOperation.MULTIPLY:
+                            m_in_brackets[i] *= m_out_brackets[k];
+                            break;
+                        case MathOperation.DIV:
+                            m_in_brackets[i] /= m_out_brackets[k];
+                            break;
+                        case MathOperation.MINUS:
+                            //m_in_brackets[i] *= m_out_brackets[k];
+                            break;
+                        case MathOperation.PLUS:
+                            //m_in_brackets[i] *= m_out_brackets[k];
+                            break;
+                    }
+                }
+            }
+            int index = 0;
+            if (replace_m_before)
+            {
+                Members[current_index] = m_in_brackets[0];
+                index++;
+            }
+            for (; index < m_in_brackets.Count; index++)
+                Members.Add(m_in_brackets[index]);
         }
 
 

@@ -26,6 +26,23 @@ namespace EquationSolution
             Operation = MathOperation.PLUS;
         }
 
+        /// <summary>
+        /// Maximum power within variables
+        /// </summary>
+        public Double MaxPower
+        {
+            get 
+            {
+                double max = 0;
+                foreach (var item in Variables)
+                {
+                    if (item.Power > max)
+                        max = item.Power;
+                }
+                return max;
+            }
+        }
+
         public static Member operator +(Member mem1, Member mem2)
         {
             Member result = (Member)mem1.Clone();
@@ -45,13 +62,19 @@ namespace EquationSolution
             if (!mem1.CompareVariables(mem2.Variables))
                 throw new InvalidOperationException("Cannot add not similar members");
             if (result.Operation == mem2.Operation)
-                result._factor -= mem2._factor;
-            else
                 result._factor += mem2._factor;
+            else
+                result._factor -= mem2._factor;
             ValidateMember(ref result);
             return result;
         }
 
+        /// <summary>
+        /// Do some compares to determine an operation to be set
+        /// </summary>
+        /// <param name="op1"></param>
+        /// <param name="op2"></param>
+        /// <returns></returns>
         private static MathOperation GetOperationMultiplyOrDivide(MathOperation op1, MathOperation op2)
         {
             MathOperation result = MathOperation.PLUS;
@@ -69,6 +92,10 @@ namespace EquationSolution
             return result;
         }
 
+        /// <summary>
+        /// Checks what sign does factor has and sets Operation if it is required
+        /// </summary>
+        /// <param name="mem"></param>
         private static void ValidateMember(ref Member mem)
         {
             if (mem.Factor < 0 && mem.Operation == MathOperation.PLUS)
@@ -111,7 +138,7 @@ namespace EquationSolution
             ValidateMember(ref result);
             return result;
         }
-
+        
         public override string ToString()
         {
             string _factor = "";
@@ -141,6 +168,10 @@ namespace EquationSolution
             return string.Format("{2} {0}{1}", _factor, variables.ToString(), sign);
         }
 
+        /// <summary>
+        /// Do not write sign if it is "+"
+        /// </summary>
+        /// <returns></returns>
         public string ToShortString()
         {
             string _factor = "";
@@ -148,10 +179,26 @@ namespace EquationSolution
                 _factor = this.Factor.ToString();
             else if (this.Factor != 1)
                 _factor = this.Factor.ToString();
+            string sign = "";
+            switch (this.Operation)
+            {
+                case MathOperation.PLUS:
+                    sign = "";
+                    break;
+                case MathOperation.MINUS:
+                    sign = "-";
+                    break;
+                case MathOperation.MULTIPLY:
+                    sign = "*";
+                    break;
+                case MathOperation.DIV:
+                    sign = "/";
+                    break;
+            }
             StringBuilder variables = new StringBuilder(10);
             foreach (var item in this.Variables)
                 variables.Append(item.ToString());
-            return string.Format("{0}{1}", _factor, variables.ToString());
+            return string.Format("{2}{0}{1}", _factor, variables.ToString(), sign);
         }
 
         public static Member operator /(Member mem1, Member mem2)
@@ -205,7 +252,7 @@ namespace EquationSolution
                 //it is float numeric
                 if (!double.TryParse(input_str, NumberStyles.Any, CultureInfo.InvariantCulture, out mem._factor))
                     mem._factor = 1.0;
-                    //todo get operation if there is one
+                //todo get operation if there is one
             }
             return mem;
         }
@@ -220,6 +267,7 @@ namespace EquationSolution
             return _copy;
         }
 
+        //Compares two lists of variables between each other
         public bool CompareVariables(List<Variable> in_variables)
         {
             if (this.Variables.Count != in_variables.Count)

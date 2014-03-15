@@ -18,9 +18,10 @@ namespace EquationSolution
             Console.WriteLine(first.ToString() + " * " + second.ToString() + " / " + third + " = " + res.ToString());
             Console.ReadKey();*/
 
-            Equation eq = new Equation("x - y + 2x*(x + 2) = x*2.4", variables);
+            Equation eq = new Equation("x - y - 2x*(x + 2) = x*5.4 + 1", variables);
+            //-2x^2 - y -8.4x - 1 = 0
             eq.Evaluate();
-            Console.WriteLine("x - y + 2x*(x + 2) = x*2.4");
+            Console.WriteLine("x - y - 2x*(x + 2) = x*5.4 + 1");
             Console.WriteLine(eq.ToString());
             Console.ReadKey();
         }
