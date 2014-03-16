@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 
 namespace EquationSolution
 {
-    class Equation
+    public class Equation
     {
         private List<string> _variable_aliases;
         private List<ExpressionToken> _parsed_tokens;
@@ -71,6 +71,11 @@ namespace EquationSolution
                 ExpressionToken expr_token = ExpressionToken.FromStringExpression(token);
                 if (expr_token.Type == TokenType.NONE)
                     throw new ArgumentException("Equation member has incorrect format");
+                if (expr_token.Type == TokenType.MEMBER)
+                {
+                    if (!hasValidVars(expr_token.Text, _variable_aliases))
+                        throw new ArgumentException(string.Format("Wrong variables at {0} member",i+1));
+                }
                 _parsed_tokens.Add(expr_token);
             }
             //we've got preparsed tokens
@@ -81,6 +86,21 @@ namespace EquationSolution
                 throw new ArgumentException("Equation is incorrect. Some brackets is not closed/opened", "Expression");
             if(_parsed_tokens.Where(x=>x.Type == TokenType.MATH_OPERATION && x.Operation == MathOperation.EQUAL).Count() != 1)
                 throw new ArgumentException("Equation is incorrect. There should be one equal sign", "Expression");
+        }
+
+        private bool hasValidVars(string token, List<string> variables)
+        {
+            variables = variables.OrderByDescending(x => x.Length).ToList();
+            double tmp = 0;
+            foreach (var item in variables)
+            {
+                if (token.Contains(item))
+                    token = token.Replace(item, "");
+            }
+            if (!string.IsNullOrEmpty(token) && !double.TryParse(token, out tmp))
+                return false;
+            else
+                return true;
         }
 
         private Member getMember(ExpressionToken token, ref int index)

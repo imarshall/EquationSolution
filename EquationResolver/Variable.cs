@@ -7,7 +7,7 @@ using System.Globalization;
 
 namespace EquationSolution
 {
-    class Variable : ICloneable
+    public class Variable : ICloneable
     {
         private const string variable_pattern = @"((?:[1-9]\d*|0)?(?:\.\d+)?)({0}(\^[0-9])?)";
         public string Alias { get; set; }

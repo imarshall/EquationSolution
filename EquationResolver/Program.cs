@@ -16,7 +16,7 @@ namespace EquationSolution
             Console.WriteLine(eq.ToString());
             Console.ReadKey();
 
-            string eq_str = "1-(ab + b + c)(ab + b + c)(ab + b + c) = 1";
+            string eq_str = "x + 1-(ab + b + c)(ab + b + c)(ab + b + c) = 1";
             Equation eq1 = new Equation(eq_str, new List<string>() { "ab", "b", "c" });
             eq1.Evaluate();
             Console.WriteLine(eq_str);

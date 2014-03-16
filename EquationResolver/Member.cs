@@ -9,7 +9,7 @@ namespace EquationSolution
 {
     public enum MathOperation { NONE, PLUS, MINUS, MULTIPLY, DIV, POW, EQUAL }
 
-    class Member : ICloneable
+    public class Member : ICloneable
     {
         private const string member_var_pattern = @"^((?:[1-9]\d*|0)?(?:\.\d+)?)(([a-zA-Z]{1,}[0-9]*(\^[0-9])?){1,})$";
         private double _factor = 0.0f;
