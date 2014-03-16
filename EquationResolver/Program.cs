@@ -10,19 +10,17 @@ namespace EquationSolution
         static void Main(string[] args)
         {
             List<string> variables = new List<string>() { "y", "x" };
-            /*var test = ExpressionToken.FromStringExpression("(");
-            Member first = Member.FromStringExpression("x", variables);
-            Member second = Member.FromStringExpression("2x^1", variables);
-            Member third = Member.FromStringExpression("y", variables);
-            var res = first * second / third;
-            Console.WriteLine(first.ToString() + " * " + second.ToString() + " / " + third + " = " + res.ToString());
-            Console.ReadKey();*/
-
-            Equation eq = new Equation("x - y - 2x*(x + 2) = x*5.4 + 1", variables);
-            //-2x^2 - y -8.4x - 1 = 0
+            Equation eq = new Equation("x - y - 2x*(x + 2)(2 + x)(2) = x*5.4 + 1", variables);
             eq.Evaluate();
-            Console.WriteLine("x - y - 2x*(x + 2) = x*5.4 + 1");
+            Console.WriteLine("x - y - 2x*(x + 2)(2 + x)(2) = x*5.4 + 1");
             Console.WriteLine(eq.ToString());
+            Console.ReadKey();
+
+            string eq_str = "1-(ab + b + c)(ab + b + c)(ab + b + c) = 1";
+            Equation eq1 = new Equation(eq_str, new List<string>() { "ab", "b", "c" });
+            eq1.Evaluate();
+            Console.WriteLine(eq_str);
+            Console.WriteLine(eq1.ToString());
             Console.ReadKey();
         }
     }

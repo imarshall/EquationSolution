@@ -142,6 +142,7 @@ namespace EquationSolution
         public override string ToString()
         {
             string _factor = "";
+            Variables = Variables.OrderBy(x => x.Alias).ToList();
             if (Variables.Count == 0)
                 _factor = this.Factor.ToString();
             else if (this.Factor != 1)
@@ -165,7 +166,14 @@ namespace EquationSolution
                     sign = "/";
                     break;
             }
-            return string.Format("{2} {0}{1}", _factor, variables.ToString(), sign);
+            string variables_str = variables.ToString();
+            if (this.Factor == 0)
+            {
+                _factor = "";
+                variables_str = "";
+                sign = "";
+            }
+            return string.Format("{2} {0}{1}", _factor, variables_str, sign);
         }
 
         /// <summary>

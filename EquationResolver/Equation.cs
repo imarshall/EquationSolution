@@ -42,6 +42,7 @@ namespace EquationSolution
         {
             Members = new List<Member>();
             _variable_aliases = variables;
+            _parsed_tokens = new List<ExpressionToken>();
         }
 
         public Equation(string _expr, List<string> variables)
@@ -49,6 +50,7 @@ namespace EquationSolution
             Members = new List<Member>();
             Expression = _expr;
             _variable_aliases = variables;
+            _parsed_tokens = new List<ExpressionToken>();
         }
 
         private void GetTokens()
@@ -98,8 +100,9 @@ namespace EquationSolution
                     break;
                 case TokenType.NUMERIC:
                     cur_member = Member.FromStringExpression(token.Text, _variable_aliases);
-                    if (_parsed_tokens[index - 1].Type == TokenType.MATH_OPERATION && _parsed_tokens[index - 1].Operation != MathOperation.EQUAL)
-                        cur_member.Operation = _parsed_tokens[index - 1].Operation;
+                    if (index - 1 > 0)
+                        if (_parsed_tokens[index - 1].Type == TokenType.MATH_OPERATION && _parsed_tokens[index - 1].Operation != MathOperation.EQUAL)
+                            cur_member.Operation = _parsed_tokens[index - 1].Operation;
                     break;
                 case TokenType.O_BRACKET:
                     index = OpenBracket(index);
@@ -125,6 +128,8 @@ namespace EquationSolution
 
         public void Evaluate()
         {
+            Members.Clear();
+            _parsed_tokens.Clear();
             GetTokens();
             for(int i=0;i<_parsed_tokens.Count;i++)
             {
@@ -142,33 +147,32 @@ namespace EquationSolution
             List<Member> Reducted = new List<Member>();
 
             List<Member> SemiReducted = new List<Member>();
-            var multiply = Members.Where(x => x != null && x.Operation == MathOperation.MULTIPLY).ToList();
+            var multiply = Members.Where(x => x != null && (x.Operation == MathOperation.MULTIPLY || x.Operation == MathOperation.DIV)).ToList();
             foreach (var item in multiply)
             {
                 var index = Members.IndexOf(item);
                 var sibling = (Member)Members[index - 1].Clone();
-                sibling *= item;
+                switch (item.Operation)
+                {
+                    case MathOperation.MULTIPLY:
+                        sibling *= item;
+                        break;
+                    case MathOperation.DIV:
+                        sibling /= item;
+                        break;
+                }
+                
                 SemiReducted.Add(sibling);
                 Members.RemoveAt(index);
                 Members.RemoveAt(index - 1);
             }
 
-            var divide = Members.Where(x => x != null && x.Operation == MathOperation.DIV).ToList();
-            foreach (var item in divide)
-            {
-                var index = Members.IndexOf(item);
-                var sibling = (Member)Members[index - 1].Clone();
-                sibling /= item;
-                SemiReducted.Add(sibling);
-                Members.Remove(item);
-                Members.Remove(sibling);
-            }
-            var plus_minus = PerformPlusMinusOperations(Members);
+            var plus_minus = performPlusMinusOperations(Members);
             SemiReducted.AddRange(plus_minus);
-            Members = PerformPlusMinusOperations(SemiReducted);
+            Members = performPlusMinusOperations(SemiReducted);
         }
 
-        private List<Member> PerformPlusMinusOperations(List<Member> in_members)
+        private List<Member> performPlusMinusOperations(List<Member> in_members)
         {
             List<Member> Reducted = new List<Member>();
             var plus_min = in_members.Where(x => x != null && (x.Operation == MathOperation.PLUS || x.Operation == MathOperation.MINUS)).ToList();
@@ -197,6 +201,13 @@ namespace EquationSolution
             return Reducted;
         }
 
+        public int OpenBracket(int o_br_index)
+        {
+            List<Member> tmp = new List<Member>();
+            return OpenBracket(o_br_index, ref tmp);
+        }
+
+
         /// <summary>
         /// Perform required operations to members inside brackets: 
         /// change sign,
@@ -207,29 +218,40 @@ namespace EquationSolution
         /// <param name="ParsedTokens">recently parsed tokens of the expression</param>
         /// <param name="tokens">entiry array of expression's tokens</param>
         /// <returns>index on closing bracket token</returns>
-        public int OpenBracket(int current_index)
+        public int OpenBracket(int o_br_index, ref List<Member> near_bracket)
         {
-            if(current_index + 1 > _parsed_tokens.Count)
-                throw new MissingMemberException(string.Format("There should be closing parenthesis after opened one. Position: {0}", current_index));
+            if (o_br_index + 1 > _parsed_tokens.Count)
+                throw new MissingMemberException(string.Format("There should be closing parenthesis after opened one. Position: {0}", o_br_index));
+
             List<Member> members_in_brackets = new List<Member>();
-            if (current_index - 1 > 0)
+            int current_index = o_br_index + 1;
+            int replace_index = -1;
+            var cur_token = _parsed_tokens[current_index];
+
+            while (cur_token.Type != TokenType.C_BRACKET)
             {
-                var token_bef_br = _parsed_tokens[current_index - 1];
-                int index = current_index+1;
-                var cur_token = _parsed_tokens[index];
-                while (cur_token.Type != TokenType.C_BRACKET)
+                var cur_member = GetMember(cur_token, ref current_index);
+                if (cur_member == null && cur_token.Type != TokenType.MEMBER && cur_token.Type != TokenType.NUMERIC)
                 {
-                    var cur_member = GetMember(cur_token, ref index);
-                    if (cur_member == null && cur_token.Type != TokenType.MEMBER && cur_token.Type != TokenType.NUMERIC)
-                    {
-                        index++;
-                        cur_token = _parsed_tokens[index];
-                        continue;
-                    }
-                    members_in_brackets.Add(cur_member);
-                    index++;
-                    cur_token = _parsed_tokens[index];
+                    current_index++;
+                    cur_token = _parsed_tokens[current_index];
+                    continue;
                 }
+                members_in_brackets.Add(cur_member);
+                current_index++;
+                cur_token = _parsed_tokens[current_index];
+            }
+
+            //if it is recursive
+            if (near_bracket.Count != 0)
+            {
+                performBracketOperation(current_index, MathOperation.MULTIPLY, ref members_in_brackets, near_bracket);
+            }
+
+            //if there is smth before brackets
+            if (o_br_index - 1 > 0) 
+            {
+                var token_bef_br = _parsed_tokens[o_br_index - 1];
 
                 if (token_bef_br.Type == TokenType.MATH_OPERATION)
                 {
@@ -239,31 +261,78 @@ namespace EquationSolution
                         {
                             if (item.Operation == MathOperation.PLUS)
                                 item.Operation = MathOperation.MINUS;
-                            if (item.Operation == MathOperation.MINUS)
+                            else if (item.Operation == MathOperation.MINUS)
                                 item.Operation = MathOperation.PLUS;
                         }
                     }
 
-                    var member_bef_operation = Members[current_index - 2];
+                    var member_bef_operation = Members[o_br_index - 2];
                     if (member_bef_operation == null)
-                        throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index - 2));
-                    performBracketOperation(current_index - 2, token_bef_br.Operation,
-                        members_in_brackets, new List<Member>() { member_bef_operation }, true);
-
-                    current_index = index;
+                        throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", o_br_index - 2));
+                    asdqwdmw(o_br_index - 2, token_bef_br.Operation, ref members_in_brackets, new List<Member>() { member_bef_operation });
+                    replace_index = o_br_index - 2;
                 }//end if token before bracket is operation
                 else if (token_bef_br.Type == TokenType.NUMERIC || token_bef_br.Type == TokenType.MEMBER)
                 {
-                    var member_bef_operation = Members[current_index - 1];
+                    var member_bef_operation = Members[o_br_index - 1];
                     if (member_bef_operation == null)
-                        throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index - 1));
-                    performBracketOperation(current_index - 1, MathOperation.MULTIPLY,
-                        members_in_brackets, new List<Member>() { member_bef_operation }, true);
-                    current_index = index;
+                        throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", o_br_index - 1));
+                    asdqwdmw(o_br_index - 1, MathOperation.MULTIPLY, ref members_in_brackets, new List<Member>() { member_bef_operation });
+                    replace_index = o_br_index - 1;
                 }
             }//end if there is something before brackets
-            //todo handle case if there is brackets after brackets
+
+            //if there is smth after brackets
+            if (current_index < _parsed_tokens.Count) 
+            {
+                var token_aft_br = _parsed_tokens[current_index + 1];
+                if (token_aft_br.Type == TokenType.MATH_OPERATION && token_aft_br.Operation != MathOperation.EQUAL)
+                {
+                    var member_bef_operation = GetMember(_parsed_tokens[current_index + 2], ref current_index);
+                    if (member_bef_operation == null)
+                        throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index + 2));
+                    asdqwdmw(current_index + 2, token_aft_br.Operation, ref members_in_brackets, new List<Member>() { member_bef_operation });
+                }
+                else if (token_aft_br.Type == TokenType.NUMERIC || token_aft_br.Type == TokenType.MEMBER)
+                {
+                    var member_bef_operation = GetMember(_parsed_tokens[current_index + 1], ref current_index);//Members[current_index + 1];
+                    if (member_bef_operation == null)
+                        throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index + 1));
+                    asdqwdmw(current_index + 1, MathOperation.MULTIPLY, ref members_in_brackets, new List<Member>() { member_bef_operation });
+                }
+                else if (token_aft_br.Type == TokenType.O_BRACKET)
+                {
+                    current_index++;
+                    current_index = OpenBracket(current_index, ref members_in_brackets);
+                }
+            }
+
+            if (near_bracket.Count == 0)
+            {
+                int index = 0;
+                if (replace_index > 0)
+                {
+                    Members[replace_index] = members_in_brackets[0];
+                    index++;
+                }
+                for (; index < members_in_brackets.Count; index++)
+                    Members.Add(members_in_brackets[index]);
+            }
+            else
+            {
+                near_bracket = members_in_brackets;
+            }
+
             return current_index;
+        }
+
+        private void asdqwdmw(int index, MathOperation operation, ref List<Member> members, List<Member> m_out_br)
+        {
+            if (m_out_br == null || m_out_br.Count == 0)
+                throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", index));
+            performBracketOperation(index, operation,
+                ref members, m_out_br);
+            //replaceMemberWithMembers(index, members);
         }
 
         /// <summary>
@@ -275,43 +344,57 @@ namespace EquationSolution
         /// <param name="m_out_brackets">members which are in another brackets or out of brackets</param>
         /// <param name="replace_m_before">True - it is required to replace member located before brackets, ex. 5*(a+b)</param>
         private void performBracketOperation(int current_index, MathOperation operation,
-            List<Member> m_in_brackets, List<Member> m_out_brackets, bool replace_m_before)
+            ref List<Member> m_in_brackets, List<Member> m_out_brackets)
         {
             if (current_index < 0)
                 throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index));
-            if (Members.Count < current_index)
-                throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index));
+            //if (Members.Count < current_index)
+            //    throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index));
             if (m_out_brackets == null || m_out_brackets.Count == 0)
                 throw new MissingMemberException(string.Format("Missing member before operation.  Position: {0}", current_index));
+            var initial_values = new List<Member>();
+            foreach (var item in m_in_brackets)
+                initial_values.Add((Member)item.Clone());
+            m_in_brackets.Clear();
+            int expected_amount = -1;
+            if(operation == MathOperation.MULTIPLY || operation == MathOperation.DIV)
+                expected_amount = initial_values.Count * m_out_brackets.Count;
+            else if (operation == MathOperation.MINUS || operation == MathOperation.PLUS)
+                expected_amount = initial_values.Count;
+            for (int i = 0; i < expected_amount; i++)
+                m_in_brackets.Add(new Member());
+            int out_count = 0;
             for (int k = 0; k < m_out_brackets.Count; k++)
             {
-                for (int i = 0; i < m_in_brackets.Count; i++)
+                for (int i = 0; i < initial_values.Count; i++)
                 {
                     switch (operation)
                     {
                         case MathOperation.MULTIPLY:
-                            m_in_brackets[i] *= m_out_brackets[k];
+                            m_in_brackets[out_count] = initial_values[i] * m_out_brackets[k];
                             break;
                         case MathOperation.DIV:
-                            m_in_brackets[i] /= m_out_brackets[k];
+                            m_in_brackets[out_count] = initial_values[i] / m_out_brackets[k];
                             break;
                         case MathOperation.MINUS:
-                            //m_in_brackets[i] *= m_out_brackets[k];
+                            m_in_brackets[out_count] = initial_values[i];
                             break;
                         case MathOperation.PLUS:
-                            //m_in_brackets[i] *= m_out_brackets[k];
+                            m_in_brackets[out_count] = initial_values[i];
                             break;
                     }
+                    out_count++;
                 }
             }
+        }
+
+        private void replaceMemberWithMembers(int replace_index, List<Member> members)
+        {
             int index = 0;
-            if (replace_m_before)
-            {
-                Members[current_index] = m_in_brackets[0];
-                index++;
-            }
-            for (; index < m_in_brackets.Count; index++)
-                Members.Add(m_in_brackets[index]);
+            Members[replace_index] = members[0];
+            index++;
+            for (; index < members.Count; index++)
+                Members.Add(members[index]);
         }
 
 
