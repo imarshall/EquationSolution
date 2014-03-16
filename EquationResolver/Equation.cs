@@ -53,7 +53,7 @@ namespace EquationSolution
             _parsed_tokens = new List<ExpressionToken>();
         }
 
-        private void GetTokens()
+        private void getTokens()
         {
             if (string.IsNullOrEmpty(Expression))
                 throw new ArgumentNullException("Expression", "Class parameter Expression cannot be null or empty");
@@ -83,14 +83,14 @@ namespace EquationSolution
                 throw new ArgumentException("Equation is incorrect. There should be one equal sign", "Expression");
         }
 
-        private Member GetMember(ExpressionToken token, ref int index)
+        private Member getMember(ExpressionToken token, ref int index)
         {
             Member cur_member = null;
             switch (token.Type)
             {
                 case TokenType.MATH_OPERATION:
                     if(token.Operation == MathOperation.EQUAL)
-                        MoveEqualSign(ref index);
+                        moveEqualSign(ref index);
                     break;
                 case TokenType.MEMBER:
                     cur_member = Member.FromStringExpression(token.Text, _variable_aliases);
@@ -111,11 +111,11 @@ namespace EquationSolution
             return cur_member;
         }
 
-        private void MoveEqualSign(ref int index)
+        private void moveEqualSign(ref int index)
         {
             for (index = index+1; index < _parsed_tokens.Count; index++)
             {
-                var mem = GetMember(_parsed_tokens[index],ref index);
+                var mem = getMember(_parsed_tokens[index],ref index);
                 if (mem == null)
                     continue;
                 if (mem.Operation == MathOperation.PLUS)
@@ -130,19 +130,19 @@ namespace EquationSolution
         {
             Members.Clear();
             _parsed_tokens.Clear();
-            GetTokens();
+            getTokens();
             for(int i=0;i<_parsed_tokens.Count;i++)
             {
                 var token = _parsed_tokens[i];
-                var cur_member = GetMember(token, ref i);
+                var cur_member = getMember(token, ref i);
                 if (cur_member == null && (token.Type == TokenType.MEMBER || token.Type == TokenType.NUMERIC))
                     throw new InvalidCastException(string.Format("Incorrect member \"{0}\" in equation", token.Text));
                 Members.Add(cur_member);
             }
-            ReductionOfSimilar();
+            reductionOfSimilar();
         }
 
-        private void ReductionOfSimilar()
+        private void reductionOfSimilar()
         {
             List<Member> Reducted = new List<Member>();
 
@@ -230,7 +230,7 @@ namespace EquationSolution
 
             while (cur_token.Type != TokenType.C_BRACKET)
             {
-                var cur_member = GetMember(cur_token, ref current_index);
+                var cur_member = getMember(cur_token, ref current_index);
                 if (cur_member == null && cur_token.Type != TokenType.MEMBER && cur_token.Type != TokenType.NUMERIC)
                 {
                     current_index++;
@@ -269,7 +269,7 @@ namespace EquationSolution
                     var member_bef_operation = Members[o_br_index - 2];
                     if (member_bef_operation == null)
                         throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", o_br_index - 2));
-                    asdqwdmw(o_br_index - 2, token_bef_br.Operation, ref members_in_brackets, new List<Member>() { member_bef_operation });
+                    doOperationWithBrackets(o_br_index - 2, token_bef_br.Operation, ref members_in_brackets, new List<Member>() { member_bef_operation });
                     replace_index = o_br_index - 2;
                 }//end if token before bracket is operation
                 else if (token_bef_br.Type == TokenType.NUMERIC || token_bef_br.Type == TokenType.MEMBER)
@@ -277,7 +277,7 @@ namespace EquationSolution
                     var member_bef_operation = Members[o_br_index - 1];
                     if (member_bef_operation == null)
                         throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", o_br_index - 1));
-                    asdqwdmw(o_br_index - 1, MathOperation.MULTIPLY, ref members_in_brackets, new List<Member>() { member_bef_operation });
+                    doOperationWithBrackets(o_br_index - 1, MathOperation.MULTIPLY, ref members_in_brackets, new List<Member>() { member_bef_operation });
                     replace_index = o_br_index - 1;
                 }
             }//end if there is something before brackets
@@ -288,17 +288,17 @@ namespace EquationSolution
                 var token_aft_br = _parsed_tokens[current_index + 1];
                 if (token_aft_br.Type == TokenType.MATH_OPERATION && token_aft_br.Operation != MathOperation.EQUAL)
                 {
-                    var member_bef_operation = GetMember(_parsed_tokens[current_index + 2], ref current_index);
+                    var member_bef_operation = getMember(_parsed_tokens[current_index + 2], ref current_index);
                     if (member_bef_operation == null)
                         throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index + 2));
-                    asdqwdmw(current_index + 2, token_aft_br.Operation, ref members_in_brackets, new List<Member>() { member_bef_operation });
+                    doOperationWithBrackets(current_index + 2, token_aft_br.Operation, ref members_in_brackets, new List<Member>() { member_bef_operation });
                 }
                 else if (token_aft_br.Type == TokenType.NUMERIC || token_aft_br.Type == TokenType.MEMBER)
                 {
-                    var member_bef_operation = GetMember(_parsed_tokens[current_index + 1], ref current_index);//Members[current_index + 1];
+                    var member_bef_operation = getMember(_parsed_tokens[current_index + 1], ref current_index);//Members[current_index + 1];
                     if (member_bef_operation == null)
                         throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index + 1));
-                    asdqwdmw(current_index + 1, MathOperation.MULTIPLY, ref members_in_brackets, new List<Member>() { member_bef_operation });
+                    doOperationWithBrackets(current_index + 1, MathOperation.MULTIPLY, ref members_in_brackets, new List<Member>() { member_bef_operation });
                 }
                 else if (token_aft_br.Type == TokenType.O_BRACKET)
                 {
@@ -326,13 +326,12 @@ namespace EquationSolution
             return current_index;
         }
 
-        private void asdqwdmw(int index, MathOperation operation, ref List<Member> members, List<Member> m_out_br)
+        private void doOperationWithBrackets(int index, MathOperation operation, ref List<Member> members, List<Member> m_out_br)
         {
             if (m_out_br == null || m_out_br.Count == 0)
                 throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", index));
             performBracketOperation(index, operation,
                 ref members, m_out_br);
-            //replaceMemberWithMembers(index, members);
         }
 
         /// <summary>
@@ -348,8 +347,6 @@ namespace EquationSolution
         {
             if (current_index < 0)
                 throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index));
-            //if (Members.Count < current_index)
-            //    throw new MissingMemberException(string.Format("Missing member before operation. Position: {0}", current_index));
             if (m_out_brackets == null || m_out_brackets.Count == 0)
                 throw new MissingMemberException(string.Format("Missing member before operation.  Position: {0}", current_index));
             var initial_values = new List<Member>();

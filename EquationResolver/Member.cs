@@ -52,7 +52,7 @@ namespace EquationSolution
                 result._factor += mem2._factor;
             else
                 result._factor -= mem2._factor;
-            ValidateMember(ref result);
+            validateMember(ref result);
             return result;
         }
 
@@ -65,7 +65,7 @@ namespace EquationSolution
                 result._factor += mem2._factor;
             else
                 result._factor -= mem2._factor;
-            ValidateMember(ref result);
+            validateMember(ref result);
             return result;
         }
 
@@ -75,7 +75,7 @@ namespace EquationSolution
         /// <param name="op1"></param>
         /// <param name="op2"></param>
         /// <returns></returns>
-        private static MathOperation GetOperationMultiplyOrDivide(MathOperation op1, MathOperation op2)
+        private static MathOperation getOperationMultiplyOrDivide(MathOperation op1, MathOperation op2)
         {
             MathOperation result = MathOperation.PLUS;
             if (op1 == MathOperation.MULTIPLY || op1 == MathOperation.DIV)
@@ -96,7 +96,7 @@ namespace EquationSolution
         /// Checks what sign does factor has and sets Operation if it is required
         /// </summary>
         /// <param name="mem"></param>
-        private static void ValidateMember(ref Member mem)
+        private static void validateMember(ref Member mem)
         {
             if (mem.Factor < 0 && mem.Operation == MathOperation.PLUS)
             {
@@ -132,10 +132,10 @@ namespace EquationSolution
                     variable_list.Add(item);
                 }
             }
-            result.Operation = GetOperationMultiplyOrDivide(mem1.Operation, mem2.Operation);
+            result.Operation = getOperationMultiplyOrDivide(mem1.Operation, mem2.Operation);
             result.Variables = variable_list;
 
-            ValidateMember(ref result);
+            validateMember(ref result);
             return result;
         }
         
@@ -233,7 +233,7 @@ namespace EquationSolution
                     variable_list.Add(clone);
                 }
             }
-            result.Operation = GetOperationMultiplyOrDivide(mem1.Operation, mem2.Operation);
+            result.Operation = getOperationMultiplyOrDivide(mem1.Operation, mem2.Operation);
             result.Variables = variable_list;
             return result;
         }
@@ -275,7 +275,11 @@ namespace EquationSolution
             return _copy;
         }
 
-        //Compares two lists of variables between each other
+        /// <summary>
+        /// Compares two lists of variables between each other
+        /// </summary>
+        /// <param name="in_variables">another list of variables</param>
+        /// <returns>True if equal</returns>
         public bool CompareVariables(List<Variable> in_variables)
         {
             if (this.Variables.Count != in_variables.Count)
